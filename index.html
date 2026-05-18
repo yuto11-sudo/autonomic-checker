@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>自律神経チェック</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --card: #ffffff;
+      --text: #172033;
+      --muted: #6b7280;
+      --main: #2563eb;
+      --danger: #ef4444;
+      --good: #10b981;
+      --warn: #f59e0b;
+      --shadow: 0 12px 30px rgba(15, 23, 42, 0.10);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: linear-gradient(180deg, #eaf1ff, var(--bg));
+      color: var(--text);
+      min-height: 100vh;
+      padding: 24px 16px 40px;
+    }
+
+    .app {
+      max-width: 520px;
+      margin: 0 auto;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 28px;
+      letter-spacing: 0.02em;
+    }
+
+    .header p {
+      color: var(--muted);
+      margin: 8px 0 0;
+      line-height: 1.6;
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      padding: 22px;
+      margin-bottom: 16px;
+    }
+
+    .camera-box {
+      position: relative;
+      overflow: hidden;
+      border-radius: 20px;
+      background: #111827;
+      aspect-ratio: 4 / 3;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      margin-bottom: 16px;
+    }
+
+    video, canvas {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    canvas { display: none; }
+
+    .guide {
+      font-size: 14px;
+      color: var(--muted);
+      line-height: 1.7;
+      margin: 0 0 16px;
+    }
+
+    .button {
+      width: 100%;
+      border: none;
+      border-radius: 999px;
+      background: var(--main);
+      color: white;
+      padding: 15px 18px;
+      font-size: 17px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .secondary {
+      background: #e5e7eb;
+      color: #111827;
+      margin-top: 10px;
+    }
+
+    .progress-wrap {
+      height: 12px;
+      background: #e5e7eb;
+      border-radius: 999px;
+      overflow: hidden;
+      margin: 12px 0 8px;
+    }
+
+    .progress {
+      height: 100%;
+      width: 0%;
+      background: var(--main);
+      transition: width 0.2s linear;
+    }
+
+    .status {
+      text-align: center;
+      color: var(--muted);
+      font-size: 14px;
+      margin-top: 8px;
+    }
+
+    .result-grid {
+      display: grid;
+      gap: 12px;
+    }
+
+    .result-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      border-bottom: 1px solid #eef2f7;
+      padding: 12px 0;
+    }
+
+    .result-item:last-child { border-bottom: none; }
+
+    .label {
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .value {
+      font-size: 26px;
+      font-weight: 800;
+    }
+
+    .unit {
+      font-size: 14px;
+      color: var(--muted);
+      margin-left: 4px;
+    }
+
+    .score {
+      text-align: center;
+      padding: 20px;
+      border-radius: 22px;
+      background: #eff6ff;
+      margin-bottom: 14px;
+    }
+
+    .score .number {
+      font-size: 52px;
+      font-weight: 900;
+      color: var(--main);
+      line-height: 1;
+    }
+
+    .score .caption {
+      margin-top: 8px;
+      color: var(--muted);
+    }
+
+    .advice {
+      font-size: 17px;
+      line-height: 1.8;
+      background: #f8fafc;
+      padding: 16px;
+      border-radius: 18px;
+      margin-top: 16px;
+    }
+
+    .hidden { display: none; }
+
+    .small {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.6;
+      margin-top: 12px;
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="header">
+      <h1>自律神経チェック</h1>
+      <p>カメラに指を当てて、心拍数・心拍の揺らぎ・簡易スコアを測定します。</p>
+    </section>
+
+    <section class="card">
+      <div class="camera-box">
+        <video id="video" autoplay playsinline muted></video>
+        <canvas id="canvas"></canvas>
+        <div id="cameraMessage">カメラは測定開始後に起動します</div>
+      </div>
+
+      <p class="guide">
+        測定中は、iPhoneの背面カメラに指先を軽く当ててください。強く押しすぎず、できるだけ動かさないのがコツです。
+      </p>
+
+      <button id="startButton" class="button">測定開始</button>
+      <button id="resetButton" class="button secondary hidden">もう一度測定する</button>
+
+      <div class="progress-wrap">
+        <div id="progress" class="progress"></div>
+      </div>
+      <div id="status" class="status">未測定</div>
+
+      <p class="small">
+        ※これは卒研・試作用の簡易測定です。医療診断には使用できません。
+      </p>
+    </section>
+
+    <section id="resultCard" class="card hidden">
+      <div class="score">
+        <div id="scoreValue" class="number">--</div>
+        <div class="caption">自律神経スコア</div>
+      </div>
+
+      <div class="result-grid">
+        <div class="result-item">
+          <div class="label">心拍数</div>
+          <div><span id="bpmValue" class="value">--</span><span class="unit">bpm</span></div>
+        </div>
+        <div class="result-item">
+          <div class="label">心拍の揺らぎ</div>
+          <div><span id="hrvValue" class="value">--</span><span class="unit">ms</span></div>
+        </div>
+      </div>
+
+      <div id="adviceText" class="advice">--</div>
+    </section>
+  </main>
+
+  <script>
+    const video = document.getElementById("video");
+    const canvas = document.getElementById("canvas");
+    const cameraMessage = document.getElementById("cameraMessage");
+    const startButton = document.getElementById("startButton");
+    const resetButton = document.getElementById("resetButton");
+    const progress = document.getElementById("progress");
+    const statusText = document.getElementById("status");
+    const resultCard = document.getElementById("resultCard");
+    const scoreValue = document.getElementById("scoreValue");
+    const bpmValue = document.getElementById("bpmValue");
+    const hrvValue = document.getElementById("hrvValue");
+    const adviceText = document.getElementById("adviceText");
+
+    const measurementSeconds = 30;
+    let stream = null;
+    let measuring = false;
+    let samples = [];
+    let startTime = 0;
+    let timerId = null;
+
+    async function startCamera() {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: "environment" },
+          width: { ideal: 640 },
+          height: { ideal: 480 }
+        },
+        audio: false
+      });
+      video.srcObject = stream;
+      cameraMessage.style.display = "none";
+      await video.play();
+    }
+
+    function stopCamera() {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        stream = null;
+      }
+      video.srcObject = null;
+      cameraMessage.style.display = "block";
+    }
+
+    function getRedAverage() {
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      canvas.width = video.videoWidth || 320;
+      canvas.height = video.videoHeight || 240;
+
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+
+      let redSum = 0;
+      let count = 0;
+
+      for (let i = 0; i < imageData.length; i += 16) {
+        redSum += imageData[i];
+        count++;
+      }
+
+      return redSum / count;
+    }
+
+    function smooth(values, windowSize = 5) {
+      const result = [];
+      for (let i = 0; i < values.length; i++) {
+        const start = Math.max(0, i - windowSize);
+        const end = Math.min(values.length - 1, i + windowSize);
+        let sum = 0;
+        let count = 0;
+        for (let j = start; j <= end; j++) {
+          sum += values[j].value;
+          count++;
+        }
+        result.push({ time: values[i].time, value: sum / count });
+      }
+      return result;
+    }
+
+    function detectPeaks(values) {
+      if (values.length < 10) return [];
+
+      const vals = values.map(v => v.value);
+      const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
+      const variance = vals.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / vals.length;
+      const sd = Math.sqrt(variance);
+      const threshold = mean + sd * 0.35;
+
+      const peaks = [];
+      let lastPeakTime = -9999;
+      const minPeakDistanceMs = 420;
+
+      for (let i = 1; i < values.length - 1; i++) {
+        const prev = values[i - 1].value;
+        const curr = values[i].value;
+        const next = values[i + 1].value;
+        const time = values[i].time;
+
+        if (curr > prev && curr > next && curr > threshold) {
+          if (time - lastPeakTime > minPeakDistanceMs) {
+            peaks.push(values[i]);
+            lastPeakTime = time;
+          }
+        }
+      }
+
+      return peaks;
+    }
+
+    function calculateResults() {
+      const validSamples = samples.slice(Math.floor(samples.length * 0.15));
+      const smoothed = smooth(validSamples, 4);
+      const peaks = detectPeaks(smoothed);
+
+      if (peaks.length < 6) {
+        return null;
+      }
+
+      const intervals = [];
+      for (let i = 1; i < peaks.length; i++) {
+        const interval = peaks[i].time - peaks[i - 1].time;
+        if (interval >= 420 && interval <= 1500) {
+          intervals.push(interval);
+        }
+      }
+
+      if (intervals.length < 5) {
+        return null;
+      }
+
+      const avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+      const bpm = Math.round(60000 / avgInterval);
+
+      const diffSquares = [];
+      for (let i = 1; i < intervals.length; i++) {
+        diffSquares.push(Math.pow(intervals[i] - intervals[i - 1], 2));
+      }
+
+      const rmssd = Math.round(Math.sqrt(diffSquares.reduce((a, b) => a + b, 0) / diffSquares.length));
+      const score = calculateAutonomicScore(bpm, rmssd);
+      const advice = createAdvice(score, bpm, rmssd);
+
+      return { bpm, hrv: rmssd, score, advice };
+    }
+
+    function calculateAutonomicScore(bpm, hrv) {
+      let score = 70;
+
+      if (hrv >= 50) score += 15;
+      else if (hrv >= 35) score += 5;
+      else if (hrv < 20) score -= 25;
+      else if (hrv < 30) score -= 15;
+
+      if (bpm >= 95) score -= 20;
+      else if (bpm >= 85) score -= 10;
+      else if (bpm >= 60 && bpm <= 80) score += 10;
+      else if (bpm < 50) score -= 5;
+
+      return Math.max(0, Math.min(100, Math.round(score)));
+    }
+
+    function createAdvice(score, bpm, hrv) {
+      if (score >= 80) {
+        return "落ち着いた状態に近いです。このまま作業を進めてもよさそうです。";
+      }
+
+      if (score >= 65) {
+        return "大きな乱れは少なそうです。集中前に軽く深呼吸するとさらに整いやすいです。";
+      }
+
+      if (bpm >= 90 && hrv < 30) {
+        return "緊張やストレスが出ている可能性があります。1分ほどゆっくり息を吐く呼吸をしてみましょう。";
+      }
+
+      if (hrv < 25) {
+        return "心拍の揺らぎが小さめです。疲労がたまっている可能性があるため、短い休憩を入れましょう。";
+      }
+
+      return "ややコンディションが乱れている可能性があります。水分補給と休憩を意識しましょう。";
+    }
+
+    async function startMeasurement() {
+      try {
+        startButton.disabled = true;
+        resultCard.classList.add("hidden");
+        resetButton.classList.add("hidden");
+        statusText.textContent = "カメラを起動しています...";
+        progress.style.width = "0%";
+        samples = [];
+
+        await startCamera();
+
+        measuring = true;
+        startTime = performance.now();
+        statusText.textContent = "測定中：指を動かさないでください";
+
+        timerId = setInterval(() => {
+          if (!measuring) return;
+
+          const now = performance.now();
+          const elapsed = now - startTime;
+          const percent = Math.min(100, (elapsed / (measurementSeconds * 1000)) * 100);
+          progress.style.width = percent + "%";
+
+          try {
+            const red = getRedAverage();
+            samples.push({ time: elapsed, value: red });
+          } catch (e) {
+            console.log(e);
+          }
+
+          if (elapsed >= measurementSeconds * 1000) {
+            finishMeasurement();
+          }
+        }, 100);
+      } catch (error) {
+        console.error(error);
+        statusText.textContent = "カメラを起動できませんでした。Safariのカメラ許可を確認してください。";
+        startButton.disabled = false;
+      }
+    }
+
+    function finishMeasurement() {
+      measuring = false;
+      clearInterval(timerId);
+      stopCamera();
+      progress.style.width = "100%";
+
+      const result = calculateResults();
+
+      if (!result) {
+        statusText.textContent = "測定に失敗しました。指をしっかりカメラに当てて再測定してください。";
+        startButton.classList.add("hidden");
+        resetButton.classList.remove("hidden");
+        startButton.disabled = false;
+        return;
+      }
+
+      scoreValue.textContent = result.score;
+      bpmValue.textContent = result.bpm;
+      hrvValue.textContent = result.hrv;
+      adviceText.textContent = result.advice;
+
+      resultCard.classList.remove("hidden");
+      statusText.textContent = "測定完了";
+      startButton.classList.add("hidden");
+      resetButton.classList.remove("hidden");
+      startButton.disabled = false;
+    }
+
+    function resetMeasurement() {
+      resultCard.classList.add("hidden");
+      progress.style.width = "0%";
+      statusText.textContent = "未測定";
+      startButton.classList.remove("hidden");
+      resetButton.classList.add("hidden");
+    }
+
+    startButton.addEventListener("click", startMeasurement);
+    resetButton.addEventListener("click", resetMeasurement);
+  </script>
+</body>
+</html>
