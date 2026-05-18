@@ -275,18 +275,29 @@
     let timerId = null;
 
     async function startCamera() {
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: "environment" },
-          width: { ideal: 640 },
-          height: { ideal: 480 }
-        },
-        audio: false
-      });
-      video.srcObject = stream;
-      cameraMessage.style.display = "none";
-      await video.play();
-    }
+  const devices = await navigator.mediaDevices.enumerateDevices();
+
+  const videoDevices = devices.filter(
+    device => device.kind === "videoinput"
+  );
+
+  const backCamera =
+    videoDevices.find(device =>
+      device.label.toLowerCase().includes("back")
+    ) || videoDevices[0];
+
+  stream = await navigator.mediaDevices.getUserMedia({
+    video: {
+      deviceId: backCamera.deviceId
+    },
+    audio: false
+  });
+
+  video.srcObject = stream;
+  cameraMessage.style.display = "none";
+
+  await video.play();
+}
 
     function stopCamera() {
       if (stream) {
